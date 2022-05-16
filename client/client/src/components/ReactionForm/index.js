@@ -24,11 +24,11 @@ const ReactionForm = ({ thoughtId }) => {
       await addReaction({
         variables: { reactionBody, thoughtId },
       });
-
       // clear form value
       setBody("");
       setCharacterCount(0);
     } catch (e) {
+      console.log("error");
       console.error(e);
     }
   };

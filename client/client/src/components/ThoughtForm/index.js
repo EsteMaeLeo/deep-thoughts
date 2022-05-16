@@ -1,17 +1,40 @@
 import React, { useState } from "react";
 
 import { useMutation } from "@apollo/client";
-import { ADD_REACTION } from "../../utils/mutations";
+import { ADD_THOUGHT } from "../../utils/mutations";
+import { QUERY_THOUGHTS, QUERY_ME } from "../../utils/queries";
 
-const ReactionForm = ({ thoughtId }) => {
-  const [reactionBody, setBody] = useState("");
+const ThoughtForm = () => {
+  const [thoughtText, setText] = useState("");
   const [characterCount, setCharacterCount] = useState(0);
-  const [addReaction, { error }] = useMutation(ADD_REACTION);
+
+  const [addThought, { error }] = useMutation(ADD_THOUGHT, {
+    update(cache, { data: { addThought } }) {
+      // could potentially not exist yet, so wrap in a try/catch
+      try {
+        // update me array's cache
+        const { me } = cache.readQuery({ query: QUERY_ME });
+        cache.writeQuery({
+          query: QUERY_ME,
+          data: { me: { ...me, thoughts: [...me.thoughts, addThought] } },
+        });
+      } catch (e) {
+        console.warn("First thought insertion by user!");
+      }
+
+      // update thought array's cache
+      const { thoughts } = cache.readQuery({ query: QUERY_THOUGHTS });
+      cache.writeQuery({
+        query: QUERY_THOUGHTS,
+        data: { thoughts: [addThought, ...thoughts] },
+      });
+    },
+  });
 
   // update state based on form input changes
   const handleChange = event => {
     if (event.target.value.length <= 280) {
-      setBody(event.target.value);
+      setText(event.target.value);
       setCharacterCount(event.target.value.length);
     }
   };
@@ -21,12 +44,12 @@ const ReactionForm = ({ thoughtId }) => {
     event.preventDefault();
 
     try {
-      await addReaction({
-        variables: { reactionBody, thoughtId },
+      await addThought({
+        variables: { thoughtText },
       });
 
       // clear form value
-      setBody("");
+      setText("");
       setCharacterCount(0);
     } catch (e) {
       console.error(e);
@@ -46,20 +69,17 @@ const ReactionForm = ({ thoughtId }) => {
         onSubmit={handleFormSubmit}
       >
         <textarea
-          placeholder="Leave a reaction to this thought..."
-          value={reactionBody}
+          placeholder="Here's a new thought..."
+          value={thoughtText}
           className="form-input col-12 col-md-9"
           onChange={handleChange}
         ></textarea>
-
         <button className="btn col-12 col-md-3" type="submit">
           Submit
         </button>
       </form>
-
-      {error && <div>Something went wrong...</div>}
     </div>
   );
 };
 
-export default ReactionForm;
+export default ThoughtForm;
